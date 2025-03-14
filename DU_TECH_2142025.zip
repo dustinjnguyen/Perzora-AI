@@ -1,0 +1,45 @@
+import pandas as pd
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+class Recommender:
+    def __init__(self, data):
+        self.df = pd.DataFrame(data)
+        self.df.set_index('User_ID', inplace=True)
+        self.similarity_matrix = self.compute_similarity()
+
+    def compute_similarity(self):
+        return pd.DataFrame(
+            cosine_similarity(self.df.T), 
+            index=self.df.columns, 
+            columns=self.df.columns
+        )
+
+    def recommend_products(self, user_id, num_recommendations=2):
+        if user_id not in self.df.index:
+            return []
+
+        user_purchases = self.df.loc[user_id]
+        purchased_items = user_purchases[user_purchases > 0].index.tolist()
+        scores = {}
+
+        for item in purchased_items:
+            similar_items = self.similarity_matrix[item].sort_values(ascending=False)[1:num_recommendations+1]
+            for sim_item, score in similar_items.items():
+                if sim_item not in purchased_items:
+                    scores[sim_item] = scores.get(sim_item, 0) + score
+
+        return sorted(scores, key=scores.get, reverse=True)[:num_recommendations]
+
+
+if __name__ == "__main__":
+    data = {
+        'User_ID': [1, 2, 3, 4, 5],
+        'Product_A': [5, 4, 0, 0, 3],
+        'Product_B': [0, 0, 3, 5, 4],
+        'Product_C': [4, 0, 5, 3, 0],
+        'Product_D': [0, 3, 4, 0, 5]
+    }
+    recommender = Recommender(data)
+    print("Recommended Products for User 1:", recommender.recommend_products(1))
+    print("Recommended Products for User 6:", recommender.recommend_products(6))  # Test with non-existing user
